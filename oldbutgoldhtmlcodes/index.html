@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AI Desk</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Outlined" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-body: #131314;
+      --bg-surface: #1E1F20;
+      --bg-surface-2: #2d2f31;
+      --text-primary: #E3E3E3;
+      --text-secondary: #C4C7C5;
+      --accent-blue: #A8C7FA;
+      --accent-green: #aff4c6;
+      --radius-l: 24px;
+      --radius-m: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: var(--bg-body);
+      color: var(--text-primary);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* --- Header --- */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--bg-body);
+      z-index: 10;
+    }
+
+    .brand { font-size: 20px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .credits-pill {
+      background: rgba(168, 199, 250, 0.1);
+      color: var(--accent-blue);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* --- Chat Area --- */
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px 110px 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .welcome-container { margin: auto 0; padding: 0 10px; transition: opacity 0.3s; }
+    .welcome-container.hidden { display: none; }
+    .greeting {
+      font-size: 38px; font-weight: 700; margin-bottom: 8px;
+      background: linear-gradient(90deg, #4285F4, #D96570);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .sub-greeting { font-size: 28px; color: #444746; margin-bottom: 32px; font-weight: 500; }
+
+    /* Messages */
+    .message { margin-bottom: 24px; max-width: 90%; line-height: 1.6; font-size: 16px; }
+    .message.user {
+      align-self: flex-end;
+      background: var(--bg-surface-2);
+      padding: 12px 18px;
+      border-radius: 20px 4px 20px 20px;
+    }
+    .message.ai { align-self: flex-start; }
+
+    /* --- Input Area --- */
+    .input-wrapper {
+      position: fixed; bottom: 0; width: 100%;
+      background: var(--bg-body);
+      padding: 10px 16px 20px;
+      z-index: 20;
+    }
+    .input-container {
+      background: var(--bg-surface);
+      border-radius: 32px;
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      border: 1px solid transparent;
+    }
+    .input-container:focus-within { border-color: rgba(255,255,255,0.2); }
+    .chat-input {
+      flex: 1; background: transparent; border: none;
+      color: var(--text-primary); font-size: 16px;
+      padding: 8px 0; outline: none; resize: none; max-height: 100px;
+    }
+    .send-btn {
+      background: var(--text-primary); color: var(--bg-body);
+      border: none; border-radius: 50%; width: 32px; height: 32px;
+      margin-left: 10px; display: flex; align-items: center; justify-content: center;
+      opacity: 0.5; pointer-events: none; transition: 0.2s;
+    }
+    .send-btn.active { opacity: 1; pointer-events: auto; }
+
+    /* --- Modals / Panels --- */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7); z-index: 50;
+      display: none; align-items: center; justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+    .modal-overlay.open { display: flex; }
+    
+    .panel {
+      background: var(--bg-surface);
+      width: 90%; max-width: 400px; max-height: 80vh;
+      border-radius: 24px;
+      padding: 24px;
+      overflow-y: auto;
+      border: 1px solid #333;
+    }
+    .panel h2 { font-size: 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .panel-section { margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 15px; }
+    
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+    .info-label { color: var(--text-secondary); }
+    
+    input {
+      width: 100%; background: #0c1018; border: 1px solid #333;
+      padding: 10px; border-radius: 8px; color: white; margin-top: 5px;
+    }
+
+    button.primary-btn {
+      width: 100%; padding: 12px; border-radius: 12px;
+      background: var(--accent-blue); color: #000;
+      border: none; font-weight: 600; margin-top: 10px;
+    }
+    button.ghost-btn {
+      width: 100%; padding: 10px; background: transparent;
+      color: var(--text-secondary); border: 1px solid #333;
+      border-radius: 12px; margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="brand">
+      <span class="material-symbols-outlined" style="color: #4285F4;">sparkle</span> 
+      AI Desk
+    </div>
+    <div class="credits-pill" onclick="openProfile()">
+      <span class="material-symbols-outlined" style="font-size:16px;">bolt</span>
+      <span id="credit-count">Loading...</span>
+    </div>
+  </div>
+
+  <div class="chat-container" id="chat-container">
+    <div class="welcome-container" id="welcome-screen">
+      <div class="greeting" id="greeting-name">Hello</div>
+      <div class="sub-greeting">How can I help you?</div>
+      <div style="color: #666; font-size: 14px;">Try asking: "Write a poem" or "Debug this code"</div>
+    </div>
+    <div id="chat-log"></div>
+  </div>
+
+  <div class="input-wrapper">
+    <div class="input-container">
+      <textarea id="prompt" class="chat-input" placeholder="Message..." rows="1"></textarea>
+      <button id="send-btn" class="send-btn">
+        <span class="material-symbols-outlined" style="font-size:18px;">arrow_upward</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="profile-modal" class="modal-overlay" onclick="if(event.target === this) this.classList.remove('open')">
+    <div class="panel">
+      <h2>Profile</h2>
+      <div class="panel-section">
+        <div class="info-row"><span class="info-label">Name</span> <span id="p-name">-</span></div>
+        <div class="info-row"><span class="info-label">Credits</span> <span id="p-credits" style="color: #A8C7FA;">-</span></div>
+        <div class="info-row"><span class="info-label">Status</span> <span id="p-role">Guest</span></div>
+      </div>
+
+      <h2>Get More Credits</h2>
+      <button class="primary-btn" onclick="buyItem('10_credits')">Buy 10 Messages (1 Star) ✨</button>
+      <button class="primary-btn" onclick="buyItem('50_credits')">Buy 50 Messages (5 Stars) 🌟</button>
+      
+      <div id="admin-entry" style="display:none; margin-top: 20px;">
+        <button class="ghost-btn" onclick="openAdmin()" style="border-color: #ff5546; color: #ff5546;">
+          Open Admin Panel
+        </button>
+      </div>
+
+      <button class="ghost-btn" onclick="document.getElementById('profile-modal').classList.remove('open')">Close</button>
+    </div>
+  </div>
+
+  <div id="admin-modal" class="modal-overlay">
+    <div class="panel" style="border-color: #ff5546;">
+      <h2 style="color: #ff5546;">Admin Control</h2>
+      
+      <div class="panel-section">
+        <div class="info-label">API Configuration</div>
+        <input id="cfg-api-key" placeholder="API Key">
+        <input id="cfg-api-base" placeholder="Base URL">
+        <input id="cfg-model" placeholder="Model Name">
+        <button class="primary-btn" onclick="saveConfig()">Save Config</button>
+      </div>
+
+      <div class="panel-section">
+        <div class="info-label">User Database</div>
+        <div id="user-list" style="max-height: 150px; overflow-y: auto; font-size: 12px; color: #999; margin-top:10px;">
+          Click Refresh to load users...
+        </div>
+        <button class="ghost-btn" onclick="loadUsers()">Refresh User List</button>
+      </div>
+
+      <button class="ghost-btn" onclick="document.getElementById('admin-modal').classList.remove('open')">Close Admin</button>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    const API_BASE = "/api";
+    
+    // State
+    let currentUser = null;
+    let isAdmin = false;
+
+    // --- Init ---
+    async function init() {
+      if(tg) {
+        tg.ready(); 
+        tg.expand();
+        tg.setHeaderColor('#131314');
+        tg.setBackgroundColor('#131314');
+      }
+      
+      const user = tg?.initDataUnsafe?.user || { id: "test", first_name: "Test", username: "p_esil" };
+      
+      // 1. Register/Login User in DB
+      try {
+        const initData = tg?.initData || ""; // Get the raw initData string
+        const res = await fetch(`${API_BASE}/init`, {
+            method: "POST",
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ initData }) // Send initData instead of user object
+        });
+        if (!res.ok) throw new Error('Init failed');
+        currentUser = await res.json();
+        
+        // Update UI
+        document.getElementById('greeting-name').innerText = `Hello, ${currentUser.first_name}`;
+        updateCreditDisplay();
+
+        // Check Admin
+        if(currentUser.role === 'admin' || (currentUser.username && currentUser.username.toLowerCase() === 'p_esil')) {
+            isAdmin = true;
+            document.getElementById('admin-entry').style.display = 'block';
+        }
+        
+      } catch (e) {
+        console.error("Login failed", e);
+        document.getElementById('credit-count').innerText = "Offline";
+      }
+    }
+
+    // --- UI Logic ---
+    function updateCreditDisplay() {
+        if(!currentUser) return;
+        const count = currentUser.role === 'admin' ? '∞' : currentUser.credits;
+        document.getElementById('credit-count').innerText = `${count} Left`;
+        
+        // Profile Modal Update
+        document.getElementById('p-name').innerText = currentUser.first_name;
+        document.getElementById('p-credits').innerText = count;
+        document.getElementById('p-role').innerText = currentUser.role.toUpperCase();
+    }
+
+    function openProfile() {
+        document.getElementById('profile-modal').classList.add('open');
+    }
+    
+    function openAdmin() {
+        document.getElementById('profile-modal').classList.remove('open');
+        document.getElementById('admin-modal').classList.add('open');
+        loadConfig();
+    }
+
+    // --- Chat Logic ---
+    const prompt = document.getElementById('prompt');
+    const sendBtn = document.getElementById('send-btn');
+    const chatLog = document.getElementById('chat-log');
+    
+    prompt.addEventListener('input', () => {
+        prompt.style.height = 'auto';
+        prompt.style.height = Math.min(prompt.scrollHeight, 100) + 'px';
+        sendBtn.classList.toggle('active', prompt.value.trim().length > 0);
+    });
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    async function sendMessage() {
+        const text = prompt.value.trim();
+        if(!text) return;
+
+        // Check local credits first
+        if(currentUser.role !== 'admin' && currentUser.credits <= 0) {
+            tg.showAlert("You ran out of credits! Please buy more.");
+            openProfile();
+            return;
+        }
+
+        // Add User Bubble
+        addBubble(text, 'user');
+        prompt.value = '';
+        document.getElementById('welcome-screen').classList.add('hidden');
+        
+        // API Call
+        try {
+            const initData = tg?.initData || "";
+            const res = await fetch(`${API_BASE}/chat`, {
+                method: "POST",
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    message: text,
+                    initData: initData  // Send initData instead of user_id for security
+                })
+            });
+            
+            const data = await res.json();
+            
+            if(data.error === 'limit_reached') {
+                addBubble(data.reply, 'ai');
+                openProfile();
+            } else {
+                addBubble(data.reply, 'ai');
+                // Update credits from server response
+                if(data.credits_left !== undefined) {
+                    currentUser.credits = data.credits_left;
+                    updateCreditDisplay();
+                }
+            }
+
+        } catch(e) {
+            addBubble("Error connecting to server.", 'ai');
+        }
+    }
+
+    function addBubble(text, type) {
+        const div = document.createElement('div');
+        div.className = `message ${type}`;
+        div.innerText = text;
+        chatLog.appendChild(div);
+        document.getElementById('chat-container').scrollTo({ top: 99999, behavior: 'smooth' });
+    }
+
+    // --- Admin & Config ---
+    async function loadConfig() {
+        // Fetch config from server or local
+        // Implementation omitted for brevity, logic similar to previous file
+    }
+
+    async function saveConfig() {
+        const cfg = {
+            apiKey: document.getElementById('cfg-api-key').value,
+            apiBase: document.getElementById('cfg-api-base').value,
+            model: document.getElementById('cfg-model').value
+        };
+        await fetch(`${API_BASE}/config`, { 
+            method: 'POST', 
+            headers: {'Content-Type':'application/json'}, 
+            body: JSON.stringify(cfg)
+        });
+        tg.showAlert("Config Saved!");
+    }
+    
+    async function loadUsers() {
+        const list = document.getElementById('user-list');
+        list.innerHTML = "Loading...";
+        const res = await fetch(`${API_BASE}/users?admin_secret=temp`);
+        const users = await res.json();
+        list.innerHTML = users.map(u => 
+            `<div><b>${u.first_name}</b> (${u.role}) - Credits: ${u.credits}</div>`
+        ).join('');
+    }
+
+    // --- Payment ---
+    async function buyItem(item) {
+        if(!tg) return;
+        try {
+            const initData = tg?.initData || "";
+            const res = await fetch(`${API_BASE}/invoice`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    item: item,
+                    initData: initData  // Send initData instead of query param user_id
+                })
+            });
+            const data = await res.json();
+            if(data.result) {
+                tg.openInvoice(data.result, (status) => {
+                    if(status === 'paid') {
+                        tg.showAlert("Payment Successful! Credits added.");
+                        // In real app, listen for webhook. Here we manually add for demo feel
+                        currentUser.credits += (item === '10_credits' ? 10 : 50);
+                        updateCreditDisplay();
+                    }
+                });
+            }
+        } catch(e) {
+            tg.showAlert("Error creating invoice");
+        }
+    }
+
+    init();
+  </script>
+</body>
+</html>
